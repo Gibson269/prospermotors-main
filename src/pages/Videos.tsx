@@ -1,7 +1,11 @@
+import { useState } from 'react';
 import { Play } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 
 const Videos = () => {
+  const [activeVideo, setActiveVideo] = useState<string | null>(null);
+
   // Sample video data - in production this would come from the database
   const videos = [
     {
@@ -9,7 +13,7 @@ const Videos = () => {
       title: 'Mercedes-Benz S-Class Showcase',
       description: 'Experience the pinnacle of automotive luxury with our Mercedes-Benz S-Class collection.',
       thumbnail: 'https://images.unsplash.com/photo-1617531653332-bd46c24f2068?w=800&auto=format',
-      videoUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
+      videoUrl: 'https://youtu.be/-4zsY28t76k?si=duA9gWfFLjPLMEa7',
     },
     {
       id: '2',
@@ -48,6 +52,36 @@ const Videos = () => {
     },
   ];
 
+  const getEmbedUrl = (url: string) => {
+    try {
+      let videoId = '';
+
+      // Handle standard watch URLs (youtube.com/watch?v=...)
+      if (url.includes('watch?v=')) {
+        videoId = url.split('watch?v=')[1].split('&')[0];
+      }
+      // Handle short URLs (youtu.be/...)
+      else if (url.includes('youtu.be/')) {
+        videoId = url.split('youtu.be/')[1].split('?')[0];
+      }
+      // Handle embed URLs (youtube.com/embed/...)
+      else if (url.includes('/embed/')) {
+        videoId = url.split('/embed/')[1].split('?')[0];
+      }
+
+      if (videoId) {
+        // Clean videoId just in case
+        videoId = videoId.split('?')[0].split('&')[0];
+        return `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0`;
+      }
+
+      return url;
+    } catch (e) {
+      console.error('Error parsing YouTube URL:', e);
+      return url;
+    }
+  };
+
   return (
     <Layout>
       {/* Hero Section */}
@@ -73,6 +107,7 @@ const Videos = () => {
               <div
                 key={video.id}
                 className="luxury-card group cursor-pointer"
+                onClick={() => setActiveVideo(video.videoUrl)}
               >
                 {/* Thumbnail */}
                 <div className="relative aspect-video overflow-hidden">
@@ -88,7 +123,7 @@ const Videos = () => {
                     </div>
                   </div>
                 </div>
-                
+
                 {/* Content */}
                 <div className="p-6">
                   <h3 className="font-serif text-lg font-semibold mb-2 group-hover:text-gold transition-colors">
@@ -110,6 +145,23 @@ const Videos = () => {
           </div>
         </div>
       </section>
+
+      {/* Video Modal */}
+      <Dialog open={!!activeVideo} onOpenChange={() => setActiveVideo(null)}>
+        <DialogContent className="max-w-4xl p-0 overflow-hidden bg-black border-none">
+          {activeVideo && (
+            <div className="aspect-video w-full">
+              <iframe
+                src={getEmbedUrl(activeVideo)}
+                title="Video player"
+                className="w-full h-full"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 };

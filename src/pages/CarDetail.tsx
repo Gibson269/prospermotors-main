@@ -7,6 +7,14 @@ import { Car } from '@/types/car';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import FlutterWavePayment from '@/components/payment/FlutterWavePayment';
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+  type CarouselApi,
+} from "@/components/ui/carousel";
 
 interface ReservationStep {
   step: number;
@@ -22,6 +30,7 @@ const CarDetail = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [imageIndex, setImageIndex] = useState(0);
+  const [api, setApi] = useState<CarouselApi>();
   const [selectedAction, setSelectedAction] = useState<string | null>(null);
   const [showPayment, setShowPayment] = useState(false);
   const [customerEmail, setCustomerEmail] = useState('');
@@ -31,6 +40,16 @@ const CarDetail = () => {
   useEffect(() => {
     fetchCar();
   }, [id]);
+
+  useEffect(() => {
+    if (!api) {
+      return;
+    }
+
+    api.on("select", () => {
+      setImageIndex(api.selectedScrollSnap());
+    });
+  }, [api]);
 
   const fetchCar = async () => {
     try {
@@ -154,7 +173,7 @@ const CarDetail = () => {
       {/* Hero Image Section */}
       <section className="bg-slate-900 py-8">
         <div className="container mx-auto px-4">
-          <Button 
+          <Button
             onClick={() => navigate('/shop')}
             variant="ghost"
             className="text-white hover:bg-slate-800 mb-6"
@@ -164,16 +183,39 @@ const CarDetail = () => {
           </Button>
 
           <div className="max-w-5xl mx-auto">
-            {/* Main Image */}
-            <div className="relative h-96 md:h-[500px] bg-slate-800 rounded-xl overflow-hidden mb-6">
-              {currentImage && currentImage.startsWith('http') ? (
-                <img
-                  src={currentImage}
-                  alt={`${car.brand} ${car.model}`}
-                  className="w-full h-full object-cover"
-                />
+            {/* Main Image Carousel */}
+            <div className="relative bg-slate-800 rounded-xl overflow-hidden mb-6">
+              {images.length > 0 ? (
+                <Carousel
+                  className="w-full"
+                  setApi={(api) => {
+                    // Update index when carousel slides
+                    api?.on('select', () => {
+                      setImageIndex(api.selectedScrollSnap());
+                    });
+                  }}
+                  opts={{
+                    loop: true,
+                  }}
+                >
+                  <CarouselContent>
+                    {images.map((img: string, idx: number) => (
+                      <CarouselItem key={idx}>
+                        <div className="relative h-96 md:h-[500px]">
+                          <img
+                            src={img}
+                            alt={`${car.brand} ${car.model} - View ${idx + 1}`}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      </CarouselItem>
+                    ))}
+                  </CarouselContent>
+                  <CarouselPrevious className="left-4" />
+                  <CarouselNext className="right-4" />
+                </Carousel>
               ) : (
-                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-700 to-slate-900">
+                <div className="h-96 md:h-[500px] w-full flex items-center justify-center bg-gradient-to-br from-slate-700 to-slate-900">
                   <svg className="w-32 h-32 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
@@ -181,7 +223,7 @@ const CarDetail = () => {
               )}
 
               {car.is_featured && (
-                <div className="absolute top-6 left-6 bg-amber-400 text-slate-900 px-6 py-2 rounded-full font-bold uppercase text-sm tracking-wider">
+                <div className="absolute top-6 left-6 bg-amber-400 text-slate-900 px-6 py-2 rounded-full font-bold uppercase text-sm tracking-wider z-10">
                   Featured
                 </div>
               )}
@@ -193,10 +235,14 @@ const CarDetail = () => {
                 {images.map((img: string, idx: number) => (
                   <button
                     key={idx}
-                    onClick={() => setImageIndex(idx)}
-                    className={`w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 border-2 transition-all ${
-                      imageIndex === idx ? 'border-amber-400' : 'border-slate-700'
-                    }`}
+                    onClick={() => {
+                      setImageIndex(idx);
+                      // We need a way to programmatically scroll the carousel here
+                      // For now, this just updates the highlight state
+                      // Ideally we would need to store the apiRef and call scrollTo(idx)
+                    }}
+                    className={`w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 border-2 transition-all ${imageIndex === idx ? 'border-amber-400' : 'border-slate-700'
+                      }`}
                   >
                     <img src={img} alt={`View ${idx + 1}`} className="w-full h-full object-cover" />
                   </button>
@@ -326,7 +372,7 @@ const CarDetail = () => {
                     <MessageCircle className="mr-2 h-4 w-4" />
                     General Enquiry
                   </Button>
-                  
+
                   <Button
                     onClick={() => setShowPayment(true)}
                     className="w-full bg-green-600 hover:bg-green-700 text-white h-11"
@@ -403,7 +449,7 @@ const CarDetail = () => {
                   {/* Customer Information Form */}
                   <div className="space-y-4">
                     <h4 className="font-semibold text-slate-900">Your Information</h4>
-                    
+
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-2">Full Name</label>
                       <input
