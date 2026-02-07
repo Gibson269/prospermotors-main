@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { useFlutterwave, closePaymentModal } from 'flutterwave-react-v3';
-import { CreditCard, Loader } from 'lucide-react';
+import { FlutterWaveButton, closePaymentModal } from 'flutterwave-react-v3';
 import { Button } from '@/components/ui/button';
+import { CreditCard, Loader2 } from 'lucide-react';
+import { createPaymentConfig, handleFlutterWaveResponse } from '@/services/paymentService';
 import { toast } from 'sonner';
-import { createPaymentConfig, handleFlutterWaveResponse, verifyPayment } from '@/services/paymentService';
 
 interface FlutterWavePaymentProps {
   amount: number;
@@ -24,103 +24,61 @@ const FlutterWavePayment = ({
   orderId,
   onSuccess,
   onError,
-  disabled = false,
+  disabled,
 }: FlutterWavePaymentProps) => {
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const config = createPaymentConfig(
-    amount,
-    customerEmail,
-    customerPhone,
-    customerName,
-    orderId
-  );
+  let config;
+  try {
+    config = createPaymentConfig(
+      amount,
+      customerEmail,
+      customerPhone,
+      customerName,
+      orderId
+    );
+  } catch (error: any) {
+    console.error('[FlutterWavePayment] Config error:', error);
+    return (
+      <Button disabled className="w-full bg-red-100 text-red-900">
+        Config Error
+      </Button>
+    );
+  }
 
-  const handleFlutterwave = useFlutterwave(config);
+  const fwConfig = {
+    ...config,
+    text: 'Pay Now',
+    callback: (response: any) => {
+      console.log('[FlutterWavePayment] Callback received:', response);
+      const result = handleFlutterWaveResponse(response);
 
-  const handlePaymentClick = async () => {
-    if (!customerEmail || !customerPhone || !customerName) {
-      toast.error('Please fill in all customer information');
-      onError('Missing customer information');
-      return;
-    }
-
-    if (amount <= 0) {
-      toast.error('Invalid amount');
-      onError('Invalid payment amount');
-      return;
-    }
-
-    setIsProcessing(true);
-
-    try {
-      const handleSuccess = async (response: any) => {
-        try {
-          setIsProcessing(false);
-          const result = handleFlutterWaveResponse(response);
-
-          if (result.status === 'success') {
-            // Verify payment on backend
-            const verified = await verifyPayment(result.transactionId || '');
-            
-            if (verified) {
-              toast.success('Payment successful! Transaction ID: ' + result.transactionId);
-              onSuccess(result.transactionId || '', result.reference || '');
-            } else {
-              toast.error('Payment verification failed');
-              onError('Payment verification failed');
-            }
-          } else if (result.status === 'cancelled') {
-            toast.info('Payment cancelled');
-            onError('Payment cancelled by user');
-          } else {
-            toast.error(result.message || 'Payment failed');
-            onError(result.message || 'Payment failed');
-          }
-
-          closePaymentModal();
-        } catch (error) {
-          console.error('Payment processing error:', error);
-          toast.error('Error processing payment');
-          onError('Error processing payment response');
-          setIsProcessing(false);
-        }
-      };
-
-      handleFlutterwave({
-        onSuccess: handleSuccess,
-        onClose() {
-          setIsProcessing(false);
-          toast.info('Payment modal closed');
-        },
-      } as any);
-    } catch (error) {
-      console.error('Error initiating payment:', error);
-      toast.error('Error initiating payment');
-      onError('Error initiating payment');
+      closePaymentModal(); // Ensure modal closes
       setIsProcessing(false);
-    }
+
+      if (result.status === 'success' && result.transactionId && result.reference) {
+        onSuccess(result.transactionId, result.reference);
+      } else if (result.status === 'cancelled') {
+        toast.info('Payment cancelled');
+      } else {
+        onError(result.message || 'Payment failed');
+        toast.error(result.message || 'Payment failed');
+      }
+    },
+    onClose: () => {
+      console.log('[FlutterWavePayment] Modal closed');
+      setIsProcessing(false);
+    },
   };
 
   return (
-    <Button
-      onClick={handlePaymentClick}
-      disabled={disabled || isProcessing || amount <= 0}
-      className="btn-gold w-full"
-      size="lg"
-    >
-      {isProcessing ? (
-        <>
-          <Loader className="mr-2 h-5 w-5 animate-spin" />
-          Processing Payment...
-        </>
-      ) : (
-        <>
-          <CreditCard className="mr-2 h-5 w-5" />
-          Pay with Flutterwave
-        </>
-      )}
-    </Button>
+    <div className="w-full">
+      <FlutterWaveButton
+        {...fwConfig}
+        className={`w-full h-12 inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-slate-900 text-white hover:bg-slate-800 ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+        disabled={disabled || isProcessing}
+      />
+    </div>
   );
 };
 

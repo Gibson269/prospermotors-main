@@ -50,7 +50,7 @@ const Shop = () => {
       console.log('[Shop] ========== FETCH START ==========');
       console.log('[Shop] Supabase URL:', import.meta.env.VITE_SUPABASE_URL);
       console.log('[Shop] Fetching cars from Supabase...');
-      
+
       const { data, error: queryError } = await supabase
         .from('cars')
         .select('*')
@@ -91,7 +91,7 @@ const Shop = () => {
       // Process cars to ensure image URLs are valid
       const carsWithImages = data.map((car: any) => {
         let imageUrls: string[] = [];
-        
+
         if (car.images && Array.isArray(car.images)) {
           imageUrls = car.images.filter((img: any) => {
             const isValid = typeof img === 'string' && (img.startsWith('http') || img.startsWith('/'));
@@ -129,7 +129,7 @@ const Shop = () => {
   const applyFilters = () => {
     let filtered = allCars;
 
-    if (filters.brand) {
+    if (filters.brand && filters.brand !== 'all') {
       filtered = filtered.filter(car => car.brand === filters.brand);
     }
 
@@ -143,15 +143,15 @@ const Shop = () => {
       filtered = filtered.filter(car => car.price <= maxPrice);
     }
 
-    if (filters.transmission) {
+    if (filters.transmission && filters.transmission !== 'all') {
       filtered = filtered.filter(car => car.transmission === filters.transmission);
     }
 
-    if (filters.fuelType) {
+    if (filters.fuelType && filters.fuelType !== 'all') {
       filtered = filtered.filter(car => car.fuel_type === filters.fuelType);
     }
 
-    if (filters.year) {
+    if (filters.year && filters.year !== 'all') {
       filtered = filtered.filter(car => car.year === parseInt(filters.year));
     }
 
@@ -197,6 +197,19 @@ const Shop = () => {
   const fuelOptions = ['Petrol', 'Diesel', 'Hybrid', 'Electric'];
   const yearOptions = Array.from({ length: 15 }, (_, i) => (new Date().getFullYear() - i).toString());
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 12;
+
+  // Pagination logic
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentCars = cars.slice(indexOfFirstItem, indexOfLastItem);
+
+  const paginate = (pageNumber: number) => {
+    setCurrentPage(pageNumber);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const FilterContent = () => (
     <div className="space-y-6">
       <div>
@@ -206,7 +219,7 @@ const Shop = () => {
             <SelectValue placeholder="All Brands" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Brands</SelectItem>
+            <SelectItem value="all">All Brands</SelectItem>
             {brands.map((brand) => (
               <SelectItem key={brand} value={brand}>{brand}</SelectItem>
             ))}
@@ -239,7 +252,7 @@ const Shop = () => {
             <SelectValue placeholder="All Types" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Types</SelectItem>
+            <SelectItem value="all">All Types</SelectItem>
             {transmissionOptions.map((type) => (
               <SelectItem key={type} value={type}>{type}</SelectItem>
             ))}
@@ -254,7 +267,7 @@ const Shop = () => {
             <SelectValue placeholder="All Types" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Types</SelectItem>
+            <SelectItem value="all">All Types</SelectItem>
             {fuelOptions.map((fuel) => (
               <SelectItem key={fuel} value={fuel}>{fuel}</SelectItem>
             ))}
@@ -269,7 +282,7 @@ const Shop = () => {
             <SelectValue placeholder="All Years" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Years</SelectItem>
+            <SelectItem value="all">All Years</SelectItem>
             {yearOptions.map((year) => (
               <SelectItem key={year} value={year}>{year}</SelectItem>
             ))}
@@ -326,7 +339,7 @@ const Shop = () => {
                 className="pl-12 h-12 text-base"
               />
             </div>
-            
+
             <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
               <SheetTrigger asChild>
                 <Button variant="outline" className="md:hidden h-12">
@@ -374,8 +387,8 @@ const Shop = () => {
                   </svg>
                   <h3 className="text-2xl font-semibold text-slate-900 mb-2">No Vehicles Found</h3>
                   <p className="text-slate-600 mb-8 max-w-md mx-auto">
-                    {hasActiveFilters 
-                      ? 'No vehicles match your criteria. Try adjusting your filters.' 
+                    {hasActiveFilters
+                      ? 'No vehicles match your criteria. Try adjusting your filters.'
                       : 'Currently no vehicles available. Check back soon for new inventory.'}
                   </p>
                   {hasActiveFilters && (
@@ -388,11 +401,12 @@ const Shop = () => {
                 <>
                   <div className="mb-8 flex items-center justify-between">
                     <p className="text-slate-600">
-                      Showing <span className="font-semibold text-slate-900">{cars.length}</span> vehicle{cars.length !== 1 ? 's' : ''}
+                      Showing <span className="font-semibold text-slate-900">{indexOfFirstItem + 1}-{Math.min(indexOfLastItem, cars.length)}</span> of <span className="font-semibold text-slate-900">{cars.length}</span> vehicles
                     </p>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {cars.map((car) => (
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
+                    {currentCars.map((car) => (
                       <div key={car.id} className="bg-white rounded-xl shadow-lg overflow-hidden group hover:shadow-2xl transition-shadow duration-300 border border-slate-100">
                         {/* Image Container */}
                         <div className="relative h-64 overflow-hidden bg-slate-200">
@@ -414,7 +428,7 @@ const Shop = () => {
                               </div>
                             </div>
                           )}
-                          
+
                           {/* Featured Badge */}
                           {car.is_featured && (
                             <div className="absolute top-4 left-4 bg-amber-400 text-slate-900 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider">
@@ -450,20 +464,23 @@ const Shop = () => {
                           <div className="mb-6 border-t border-b border-slate-200 py-4">
                             <p className="text-xs uppercase tracking-wider text-slate-500 mb-1">Price</p>
                             <p className="text-2xl font-bold text-slate-900">
-                              ₦{(car.price / 1000000).toFixed(1)}M
+                              {/* Defensive coding for price */}
+                              {typeof car.price === 'number' && !isNaN(car.price)
+                                ? `₦${(car.price / 1000000).toFixed(1)}M`
+                                : 'Price on Request'}
                             </p>
                           </div>
 
                           {/* Actions */}
                           <div className="space-y-3">
-                            <Button 
+                            <Button
                               onClick={() => window.location.href = `/car/${car.id}`}
                               className="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold h-11"
                             >
                               View Details
                             </Button>
-                            
-                            <Button 
+
+                            <Button
                               onClick={() => handleWhatsAppClick(car)}
                               variant="outline"
                               className="w-full border-slate-900 text-slate-900 hover:bg-slate-50 font-semibold h-11"
@@ -476,9 +493,33 @@ const Shop = () => {
                       </div>
                     ))}
                   </div>
+
+                  {/* Pagination Controls */}
+                  {cars.length > itemsPerPage && (
+                    <div className="flex justify-center items-center space-x-4 mt-8">
+                      <Button
+                        variant="outline"
+                        onClick={() => paginate(currentPage - 1)}
+                        disabled={currentPage === 1}
+                      >
+                        Previous
+                      </Button>
+                      <span className="text-slate-600 font-medium">
+                        Page {currentPage} of {Math.ceil(cars.length / itemsPerPage)}
+                      </span>
+                      <Button
+                        variant="outline"
+                        onClick={() => paginate(currentPage + 1)}
+                        disabled={currentPage === Math.ceil(cars.length / itemsPerPage)}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  )}
                 </>
               )}
             </div>
+            {/* End Cars Grid */}
           </div>
         </div>
       </section>

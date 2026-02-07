@@ -46,14 +46,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-      
+
       if (session?.user) {
         const adminStatus = await checkAdminRole(session.user.id);
         setIsAdmin(adminStatus);
       } else {
         setIsAdmin(false);
       }
-      
+
       setIsLoading(false);
     });
 
@@ -62,19 +62,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       async (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
-        
+
         if (session?.user) {
           const adminStatus = await checkAdminRole(session.user.id);
           setIsAdmin(adminStatus);
         } else {
           setIsAdmin(false);
         }
-        
+
         setIsLoading(false);
       }
     );
 
-    return () => subscription?.unsubscribe();
+    // Safety timeout to prevent infinite loading
+    const timeoutId = setTimeout(() => {
+      setIsLoading((prev) => {
+        if (prev) {
+          console.warn('[AuthContext] Force disabling loading state due to timeout');
+          return false;
+        }
+        return prev;
+      });
+    }, 5000);
+
+    return () => {
+      subscription?.unsubscribe();
+      clearTimeout(timeoutId);
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {

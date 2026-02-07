@@ -1,4 +1,4 @@
-import { FlutterWaveResponse } from 'flutterwave-react-v3';
+
 
 export interface PaymentConfig {
   public_key: string;
@@ -40,7 +40,7 @@ export const createPaymentConfig = (
   orderId?: string
 ): PaymentConfig => {
   const publicKey = import.meta.env.VITE_FLUTTERWAVE_PUBLIC_KEY;
-  
+
   if (!publicKey) {
     throw new Error('Flutterwave public key is not configured');
   }
@@ -53,12 +53,14 @@ export const createPaymentConfig = (
     throw new Error('Amount must be greater than 0');
   }
 
-  console.log('[PaymentService] Creating payment config:', {
+  console.log('[PaymentService] config input:', {
     amount,
     currency: 'NGN',
     customerEmail,
     customerName,
     txRef,
+    hasPublicKey: !!publicKey,
+    publicKeyPrefix: publicKey ? publicKey.substring(0, 8) + '...' : 'MISSING',
   });
 
   return {
@@ -83,7 +85,7 @@ export const createPaymentConfig = (
   };
 };
 
-export const handleFlutterWaveResponse = (response: FlutterWaveResponse): PaymentResult => {
+export const handleFlutterWaveResponse = (response: any): PaymentResult => {
   console.log('[PaymentService] Handling Flutterwave response:', {
     status: response?.status,
     txRef: response?.tx_ref,
@@ -143,7 +145,7 @@ export const verifyPayment = async (transactionId: string): Promise<boolean> => 
     //   body: JSON.stringify({ transactionId }),
     // });
     // return response.ok;
-    
+
     // For now, return true - implement backend verification
     console.log('Verifying payment:', transactionId);
     return true;

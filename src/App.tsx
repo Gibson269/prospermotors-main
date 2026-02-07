@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
 // Public Pages
 import Index from "./pages/Index";
@@ -32,6 +33,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <ErrorBoundary>
             <Routes>
               {/* Public Routes */}
               <Route path="/" element={<Index />} />
@@ -41,7 +43,7 @@ const App = () => (
               <Route path="/contact" element={<Contact />} />
               <Route path="/videos" element={<Videos />} />
               <Route path="/diagnostics" element={<Diagnostics />} />
-              
+
               {/* Admin Routes */}
               <Route path="/admin" element={<AdminLogin />} />
               <Route
@@ -76,11 +78,12 @@ const App = () => (
                   </ProtectedRoute>
                 }
               />
-              
+
               {/* Catch-all */}
               <Route path="*" element={<NotFound />} />
             </Routes>
-          </BrowserRouter>
+          </ErrorBoundary>
+        </BrowserRouter>
       </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>

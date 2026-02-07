@@ -56,39 +56,53 @@ const AdminCars = () => {
 
   const createMutation = useMutation({
     mutationFn: async (carData: any) => {
-      // Validate required fields
+      // Deep validation
       if (!carData.brand || !carData.model || !carData.year || carData.price === undefined) {
-        throw new Error('Brand, model, year, and price are required');
+        const missing = [];
+        if (!carData.brand) missing.push('brand');
+        if (!carData.model) missing.push('model');
+        if (!carData.year) missing.push('year');
+        if (carData.price === undefined) missing.push('price');
+        throw new Error(`Missing required fields: ${missing.join(', ')}`);
       }
 
-      // Ensure price is a number
+      // Ensure primitive types
       const cleanData = {
         ...carData,
-        price: parseFloat(carData.price),
-        year: parseInt(carData.year),
-        mileage: carData.mileage ? parseInt(carData.mileage) : 0,
+        brand: String(carData.brand),
+        model: String(carData.model),
+        price: Number(carData.price),
+        year: Number(carData.year),
+        mileage: Number(carData.mileage || 0),
+        images: Array.isArray(carData.images) ? carData.images : [],
+        updated_at: new Date().toISOString(), // Force update timestamp
       };
 
-      console.log('[AdminCars] Creating car:', cleanData);
-      const { data, error } = await supabase.from('cars').insert(cleanData).select();
-      
+      console.log('[AdminCars] Submitting cleaned data to Supabase:', cleanData);
+
+      const { data, error } = await supabase
+        .from('cars')
+        .insert(cleanData)
+        .select()
+        .single(); // Ensure we get the single created object back
+
       if (error) {
-        console.error('[AdminCars] Supabase error:', error);
-        throw new Error(error.message || 'Failed to add car to database');
+        console.error('[AdminCars] Supabase INSERT error:', error);
+        throw new Error(error.message || 'Database insert failed');
       }
-      
+
       console.log('[AdminCars] Car created successfully:', data);
       return data;
     },
     onSuccess: (data) => {
-      console.log('[AdminCars] onSuccess: refetching cars list');
+      console.log('[AdminCars] onSuccess triggered');
       queryClient.invalidateQueries({ queryKey: ['admin-cars'] });
-      toast.success('Car added successfully');
+      toast.success(`Car "${data.brand} ${data.model}" added successfully`);
       closeDialog();
     },
     onError: (error: any) => {
-      console.error('[AdminCars] Error creating car:', error);
-      const errorMessage = error?.message || 'Failed to add car';
+      console.error('[AdminCars] Mutation error:', error);
+      const errorMessage = error?.message || 'Failed to add car. Check console for details.';
       toast.error(errorMessage);
     },
   });
@@ -105,7 +119,7 @@ const AdminCars = () => {
 
       console.log('Updating car data:', cleanData);
       const { error } = await supabase.from('cars').update(cleanData).eq('id', id);
-      
+
       if (error) {
         console.error('Supabase error:', error);
         throw new Error(error.message || 'Failed to update car');
@@ -215,7 +229,7 @@ const AdminCars = () => {
       console.log('[AdminCars] Updating car:', editingCar.id);
       updateMutation.mutate({ id: editingCar.id, data: carData });
     } else {
-      console.log('[AdminCars] Creating new car');
+      console.log('[AdminCars] Creating new car with payload:', JSON.stringify(carData, null, 2));
       createMutation.mutate(carData);
     }
   };
@@ -226,19 +240,19 @@ const AdminCars = () => {
       toast.error('Please enter an image URL');
       return;
     }
-    
+
     // Basic URL validation
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
       toast.error('Image URL must start with http:// or https://');
       return;
     }
-    
+
     // Check if URL already exists
     if (imageUrls.includes(url)) {
       toast.error('This image URL is already added');
       return;
     }
-    
+
     console.log('[AdminCars] Adding image URL:', url);
     setImageUrls([...imageUrls, url]);
     setNewImageUrl('');
@@ -266,10 +280,14 @@ const AdminCars = () => {
             <h1 className="font-serif text-3xl font-semibold">Cars</h1>
             <p className="text-muted-foreground">Manage your vehicle inventory</p>
           </div>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <Dialog open={dialogOpen} onOpenChange={(open) => {
+            console.log('[AdminCars] Dialog onOpenChange:', open);
+            setDialogOpen(open);
+            if (!open) closeDialog();
+          }}>
             <DialogTrigger asChild>
               <Button className="btn-gold" onClick={() => {
-                console.log('[AdminCars] Add Car button clicked');
+                console.log('[AdminCars] Add Car button clicked - setting dialog to true');
                 setDialogOpen(true);
               }}>
                 <Plus className="mr-2 h-4 w-4" />
